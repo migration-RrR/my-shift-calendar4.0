@@ -27,18 +27,31 @@ document.querySelectorAll(".brigade-btn").forEach(btn=>{
     selectedBrigade = btn.dataset.brigade;
     localStorage.setItem("brigade", selectedBrigade);
     generateCalendar();
+
+    // 🔔 ВОТ ЭТО ДОБАВЛЯЕМ
+    showShiftAlert();
   };
 });
 
+
 document.querySelector(`[data-brigade="${selectedBrigade}"]`).classList.add("active");
+
+// Смещение дней для корректного отображения сегодня
+const brigadeOffsets = {
+  A: 3,  // 2 бригада сегодня в день
+  B: 1,  // 1 бригада сегодня отсыпной
+  C: 3,  // 4 бригада сегодня по циклу
+  D: 1,   // 3 бригада сегодня день
+};
 
 function getShift(date){
   const cycle = brigadeCycles[selectedBrigade];
   const diff = Math.floor((date - baseDate)/86400000);
-  let index = diff % 4;
+  let index = (diff + (brigadeOffsets[selectedBrigade] || 0)) % 4;
   if(index < 0) index += 4;
   return cycle[index];
 }
+
 
 function generateCalendar(){
 
@@ -200,5 +213,54 @@ function formatShift(s){
          s==="night"?"Ночь":
          s==="rest"?"Отсыпной":"Выходной";
 }
+
+const themeBtn = document.getElementById("theme-toggle");
+
+let savedTheme = localStorage.getItem("theme");
+
+if(savedTheme === "light"){
+  document.body.classList.add("light");
+}
+
+themeBtn.onclick = ()=>{
+  document.body.classList.toggle("light");
+
+  if(document.body.classList.contains("light")){
+    localStorage.setItem("theme","light");
+  }else{
+    localStorage.setItem("theme","dark");
+  }
+};
+
+function showShiftAlert(){
+
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate()+1);
+
+  const todayShift = getShift(today);
+  const tomorrowShift = getShift(tomorrow);
+
+  const alert = document.getElementById("shift-alert");
+
+  const format = s =>
+    s==="day" ? "☀️ Сегодня в день" :
+    s==="night" ? "🌙 Сегодня в ночь" :
+    s==="rest" ? "😴 Сегодня отсыпной" :
+    "🟢 Сегодня выходной";
+
+  const formatTomorrow = s =>
+    s==="day" ? "☀️ Завтра в день" :
+    s==="night" ? "🌙 Завтра в ночь" :
+    s==="rest" ? "😴 Завтра отсыпной" :
+    "🟢 Завтра выходной";
+
+  alert.innerHTML = format(todayShift) + "<br>" + formatTomorrow(tomorrowShift);
+
+  setTimeout(()=> alert.classList.add("show"), 500);
+  setTimeout(()=> alert.classList.remove("show"), 4000);
+}
+
+showShiftAlert();
 
 generateCalendar();
