@@ -5,119 +5,152 @@ const brigadeCycles = {
   D:["off","day","night","rest"]
 };
 
-let selectedBrigade="A";
-const calendarEl=document.querySelector(".calendar");
-const todayBtn=document.getElementById("today-btn");
-const dateInput=document.getElementById("date-input");
-const checkBtn=document.getElementById("check-date");
+// сохраняем выбранную бригаду
+let selectedBrigade = localStorage.getItem("brigade") || "A";
 
-const monthNames=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
-const weekDays=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+const calendarEl = document.querySelector(".calendar");
+const todayBtn = document.getElementById("today-btn");
+const dateInput = document.getElementById("date-input");
+const checkBtn = document.getElementById("check-date");
 
-document.querySelectorAll(".brigade-btn").forEach(btn=>{
-  btn.addEventListener("click",()=>{
-    selectedBrigade=btn.dataset.brigade;
+const monthNames = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const weekDays = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+
+// ===== КНОПКИ БРИГАД =====
+document.querySelectorAll(".brigade-btn").forEach(btn => {
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+
+    document.querySelectorAll(".brigade-btn")
+      .forEach(b => b.classList.remove("active"));
+
+    btn.classList.add("active");
+
+    selectedBrigade = btn.dataset.brigade;
+    localStorage.setItem("brigade", selectedBrigade);
+
     generateCalendar();
   });
 });
 
+// при загрузке делаем активную
+document.querySelector(`[data-brigade="${selectedBrigade}"]`)
+  .classList.add("active");
+
+// ===== ГЕНЕРАЦИЯ КАЛЕНДАРЯ =====
 function generateCalendar(){
-  calendarEl.innerHTML="";
-  const year=new Date().getFullYear();
-  const cycle=brigadeCycles[selectedBrigade];
-  const today=new Date();
+  calendarEl.innerHTML = "";
+  const year = new Date().getFullYear();
+  const cycle = brigadeCycles[selectedBrigade];
+  const today = new Date();
 
-  for(let month=0;month<12;month++){
-    const monthDiv=document.createElement("div");
-    monthDiv.classList.add("month");
-    const monthHeader=document.createElement("h2");
-    monthHeader.textContent=monthNames[month];
-    monthDiv.appendChild(monthHeader);
+  for(let month=0; month<12; month++){
 
-    const weekHeader=document.createElement("div");
-    weekHeader.classList.add("week-header");
+    const monthDiv = document.createElement("div");
+    monthDiv.className = "month";
+
+    const title = document.createElement("h2");
+    title.textContent = monthNames[month] + " " + year;
+    monthDiv.appendChild(title);
+
+    const weekHeader = document.createElement("div");
+    weekHeader.className = "week-header";
+
     weekDays.forEach(d=>{
-      const dayEl=document.createElement("div");
-      dayEl.textContent=d;
-      weekHeader.appendChild(dayEl);
+      const el = document.createElement("div");
+      el.textContent = d;
+      weekHeader.appendChild(el);
     });
+
     monthDiv.appendChild(weekHeader);
 
-    const daysContainer=document.createElement("div");
-    daysContainer.classList.add("days-container");
+    const daysContainer = document.createElement("div");
+    daysContainer.className = "days-container";
 
-    const daysInMonth=new Date(year,month+1,0).getDate();
-    const firstDay=new Date(year,month,1).getDay();
-    let offset=firstDay===0?6:firstDay-1;
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    let offset = firstDay === 0 ? 6 : firstDay - 1;
 
     for(let i=0;i<offset;i++){
-      const empty=document.createElement("div");
-      empty.classList.add("day-cell","empty");
+      const empty = document.createElement("div");
+      empty.className = "day-cell empty";
       daysContainer.appendChild(empty);
     }
 
-    for(let day=1;day<=daysInMonth;day++){
-      const date=new Date(year,month,day);
-      const diffDays=Math.floor((date-new Date(year,0,1))/(1000*60*60*24));
-      const shift=cycle[diffDays%4];
+    for(let day=1; day<=daysInMonth; day++){
+      const date = new Date(year, month, day);
+      const diffDays = Math.floor((date - new Date(year,0,1)) / 86400000);
+      const shift = cycle[diffDays % 4];
 
-      const dayCell=document.createElement("div");
-      dayCell.classList.add("day-cell",shift);
-      dayCell.textContent=day;
+      const cell = document.createElement("div");
+      cell.className = "day-cell " + shift;
+      cell.textContent = day;
 
-      const popup=document.createElement("div");
-      popup.classList.add("shift-popup");
-      popup.textContent=formatShift(shift);
-      dayCell.appendChild(popup);
+      const popup = document.createElement("div");
+      popup.className = "shift-popup";
+      popup.textContent = formatShift(shift);
+      cell.appendChild(popup);
 
-      dayCell.addEventListener("click",()=>{
-        document.querySelectorAll(".day-cell").forEach(c=>{
-          c.classList.remove("selected","show-popup");
-        });
-        dayCell.classList.add("selected","show-popup");
-        dayCell.scrollIntoView({behavior:"smooth",block:"center"});
+      cell.addEventListener("click", ()=>{
+        document.querySelectorAll(".day-cell")
+          .forEach(c => c.classList.remove("selected","show-popup"));
+
+        cell.classList.add("selected","show-popup");
+        cell.scrollIntoView({behavior:"smooth",block:"center"});
       });
 
-      if(date.toDateString()===today.toDateString()){
-        dayCell.classList.add("today");
+      if(date.toDateString() === today.toDateString()){
+        cell.classList.add("today");
       }
 
-      daysContainer.appendChild(dayCell);
+      daysContainer.appendChild(cell);
     }
+
     monthDiv.appendChild(daysContainer);
     calendarEl.appendChild(monthDiv);
   }
 }
 
-todayBtn.addEventListener("click",()=>{
-  const today=new Date();
-  const target=document.querySelector(".day-cell.today");
+// ===== КНОПКА СЕГОДНЯ =====
+todayBtn.addEventListener("click", ()=>{
+  const target = document.querySelector(".day-cell.today");
   if(target){
-    document.querySelectorAll(".day-cell").forEach(c=>{
-      c.classList.remove("selected","show-popup");
-    });
+    document.querySelectorAll(".day-cell")
+      .forEach(c => c.classList.remove("selected","show-popup"));
+
     target.classList.add("selected","show-popup");
     target.scrollIntoView({behavior:"smooth",block:"center"});
   }
 });
 
-checkBtn.addEventListener("click",()=>{
+// ===== ПРОВЕРКА ДАТЫ =====
+checkBtn.addEventListener("click", ()=>{
   if(!dateInput.value) return;
-  const d=new Date(dateInput.value+"T00:00");
-  const cycle=brigadeCycles[selectedBrigade];
-  const diff=Math.floor((d-new Date(d.getFullYear(),0,1))/(1000*60*60*24));
-  const shift=cycle[diff%4];
 
-  const monthDivs=document.querySelectorAll(".month");
-  const targetMonth=monthDivs[d.getMonth()];
-  const dayCells=targetMonth.querySelectorAll(".day-cell:not(.empty)");
-  dayCells.forEach(c=>c.classList.remove("selected","show-popup"));
-  const targetDay=Array.from(dayCells).find(c=>parseInt(c.textContent)===d.getDate());
+  const d = new Date(dateInput.value + "T00:00");
+
+  const monthDivs = document.querySelectorAll(".month");
+  const targetMonth = monthDivs[d.getMonth()];
+  const dayCells = targetMonth.querySelectorAll(".day-cell:not(.empty)");
+
+  dayCells.forEach(c => c.classList.remove("selected","show-popup"));
+
+  const targetDay = Array.from(dayCells)
+    .find(c => parseInt(c.textContent) === d.getDate());
+
   if(targetDay){
     targetDay.classList.add("selected","show-popup");
     targetDay.scrollIntoView({behavior:"smooth",block:"center"});
   }
 });
+
+function formatShift(s){
+  return s==="day"?"День":
+         s==="night"?"Ночь":
+         s==="rest"?"Отсыпной":"Выходной";
+}
+
+generateCalendar();
 
 function formatShift(s){return s==="day"?"День":s==="night"?"Ночь":s==="rest"?"Отсыпной":"Выходной";}
 
