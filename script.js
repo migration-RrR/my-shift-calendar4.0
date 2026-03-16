@@ -16,44 +16,59 @@ const checkBtn = document.getElementById("check-date");
 const monthNames = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
 const weekDays = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
 
-/* 🔥 СЕГОДНЯ = НАЧАЛО ЦИКЛА */
-const baseDate = new Date();
-baseDate.setHours(0,0,0,0);
+/* БАЗОВАЯ ДАТА ЦИКЛА */
+const baseDate = new Date("2026-03-15T00:00:00");
+
+/* СМЕЩЕНИЕ ДЛЯ БРИГАД */
+const brigadeOffsets = {
+  A:0,
+  B:2,
+  C:3,
+  D:1
+};
+
+/* КНОПКИ БРИГАД */
 
 document.querySelectorAll(".brigade-btn").forEach(btn=>{
   btn.onclick = ()=>{
     document.querySelectorAll(".brigade-btn").forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
+
     selectedBrigade = btn.dataset.brigade;
     localStorage.setItem("brigade", selectedBrigade);
-    generateCalendar();
 
-    // 🔔 ВОТ ЭТО ДОБАВЛЯЕМ
+    generateCalendar();
     showShiftAlert();
   };
 });
 
+const activeBtn = document.querySelector([data-brigade="${selectedBrigade}"]);
+if(activeBtn){
+  activeBtn.classList.add("active");
+}
 
-document.querySelector(`[data-brigade="${selectedBrigade}"]`).classList.add("active");
-
-// Смещение дней для корректного отображения сегодня
-const brigadeOffsets = {
-  A: 3,  // 2 бригада сегодня в день
-  B: 1,  // 1 бригада сегодня отсыпной
-  C: 3,  // 4 бригада сегодня по циклу
-  D: 1,   // 3 бригада сегодня день
-};
+/* РАСЧЕТ СМЕНЫ */
 
 function getShift(date){
+
   const cycle = brigadeCycles[selectedBrigade];
-  const diff = Math.floor((date - baseDate)/86400000);
-  let index = (diff + (brigadeOffsets[selectedBrigade] || 0)) % 4;
+
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+
+  const diff = Math.floor((d - baseDate) / 86400000);
+
+  let index = (diff + brigadeOffsets[selectedBrigade]) % 4;
   if(index < 0) index += 4;
+
   return cycle[index];
 }
 
+/* ГЕНЕРАЦИЯ КАЛЕНДАРЯ */
 
 function generateCalendar(){
+
+  if(!calendarEl) return;
 
   calendarEl.innerHTML = "";
 
@@ -64,6 +79,7 @@ function generateCalendar(){
     ${currentYear}
     <button id="nextYear">→</button>
   `;
+
   calendarEl.appendChild(yearTitle);
 
   document.getElementById("prevYear").onclick = ()=>{
@@ -76,7 +92,8 @@ function generateCalendar(){
     generateCalendar();
   };
 
-  const today = new Date();
+  const today = new Date(2026, 2, 15);
+  today.setHours(0,0,0,0);
 
   for(let month=0; month<12; month++){
 
@@ -88,6 +105,7 @@ function generateCalendar(){
 
     const title = document.createElement("h2");
     title.textContent = monthNames[month] + " " + currentYear;
+
     monthDiv.appendChild(title);
 
     const weekHeader = document.createElement("div");
@@ -106,6 +124,7 @@ function generateCalendar(){
 
     const daysInMonth = new Date(currentYear, month+1, 0).getDate();
     const firstDay = new Date(currentYear, month, 1).getDay();
+
     let offset = firstDay === 0 ? 6 : firstDay - 1;
 
     for(let i=0;i<offset;i++){
@@ -126,6 +145,7 @@ function generateCalendar(){
 
       if(shift === "night"){
         const next = new Date(currentYear, month, day+1);
+
         if(next.getMonth() === month){
           monthHours += 11.5;
           monthShifts++;
@@ -139,11 +159,13 @@ function generateCalendar(){
       const popup = document.createElement("div");
       popup.className = "shift-popup";
       popup.textContent = formatShift(shift);
+
       cell.appendChild(popup);
 
       cell.onclick = ()=>{
         document.querySelectorAll(".day-cell")
           .forEach(c=>c.classList.remove("selected","show-popup"));
+
         cell.classList.add("selected","show-popup");
       };
 
@@ -162,39 +184,22 @@ function generateCalendar(){
       Итого часов: <strong>${monthHours}</strong> ч<br>
       Итого смен: <strong>${monthShifts}</strong>
     `;
+
     monthDiv.appendChild(total);
 
     calendarEl.appendChild(monthDiv);
   }
 }
 
-todayBtn.onclick = ()=>{
-  const target = document.querySelector(".day-cell.today");
-  if(target){
-    document.querySelectorAll(".day-cell")
-      .forEach(c=>c.classList.remove("selected","show-popup"));
-    target.classList.add("selected","show-popup");
-    target.scrollIntoView({behavior:"smooth",block:"center"});
-  }
-};
-
-checkBtn.onclick = ()=>{
-  if(!dateInput.value) return;
-
-  const d = new Date(dateInput.value + "T00:00");
-
-  if(d.getFullYear() !== currentYear){
-    currentYear = d.getFullYear();
-    generateCalendar();
-    setTimeout(()=> highlightDate(d),100);
-  }else{
-    highlightDate(d);
-  }
-};
+/* ПОКАЗ ДАТЫ */
 
 function highlightDate(d){
+
   const monthDivs = document.querySelectorAll(".month");
   const targetMonth = monthDivs[d.getMonth()];
+
+  if(!targetMonth) return;
+
   const dayCells = targetMonth.querySelectorAll(".day-cell:not(.empty)");
 
   dayCells.forEach(c => c.classList.remove("selected","show-popup"));
@@ -204,15 +209,62 @@ function highlightDate(d){
 
   if(targetDay){
     targetDay.classList.add("selected","show-popup");
-    targetDay.scrollIntoView({behavior:"smooth",block:"center"});
+
+    targetDay.scrollIntoView({
+      behavior:"smooth",
+      block:"center"
+    });
   }
 }
 
-function formatShift(s){
-  return s==="day"?"День":
-         s==="night"?"Ночь":
-         s==="rest"?"Отсыпной":"Выходной";
+/* КНОПКИ */
+
+if(todayBtn){
+  todayBtn.onclick = ()=>{
+    const target = document.querySelector(".day-cell.today");
+
+    if(target){
+      document.querySelectorAll(".day-cell")
+        .forEach(c=>c.classList.remove("selected","show-popup"));
+
+      target.classList.add("selected","show-popup");
+
+      target.scrollIntoView({
+        behavior:"smooth",
+        block:"center"
+      });
+    }
+  };
 }
+
+if(checkBtn){
+  checkBtn.onclick = ()=>{
+    if(!dateInput.value) return;
+
+    const d = new Date(dateInput.value + "T00:00");
+
+    if(d.getFullYear() !== currentYear){
+      currentYear = d.getFullYear();
+
+      generateCalendar();
+
+      setTimeout(()=>highlightDate(d),100);
+    }else{
+      highlightDate(d);
+    }
+  };
+}
+
+/* ФОРМАТ СМЕНЫ */
+
+function formatShift(s){
+  return s==="day" ? "День" :
+         s==="night" ? "Ночь" :
+         s==="rest" ? "Отсыпной" :
+         "Выходной";
+}
+
+/* ТЕМА */
 
 const themeBtn = document.getElementById("theme-toggle");
 
@@ -222,26 +274,32 @@ if(savedTheme === "light"){
   document.body.classList.add("light");
 }
 
-themeBtn.onclick = ()=>{
-  document.body.classList.toggle("light");
+if(themeBtn){
+  themeBtn.onclick = ()=>{
+    document.body.classList.toggle("light");
 
-  if(document.body.classList.contains("light")){
-    localStorage.setItem("theme","light");
-  }else{
-    localStorage.setItem("theme","dark");
-  }
-};
+    if(document.body.classList.contains("light")){
+      localStorage.setItem("theme","light");
+    }else{
+      localStorage.setItem("theme","dark");
+    }
+  };
+}
+
+/* УВЕДОМЛЕНИЕ О СМЕНЕ */
 
 function showShiftAlert(){
 
+  const alert = document.getElementById("shift-alert");
+  if(!alert) return;
+
   const today = new Date();
   const tomorrow = new Date();
+
   tomorrow.setDate(today.getDate()+1);
 
   const todayShift = getShift(today);
   const tomorrowShift = getShift(tomorrow);
-
-  const alert = document.getElementById("shift-alert");
 
   const format = s =>
     s==="day" ? "☀️ Сегодня в день" :
@@ -257,18 +315,17 @@ function showShiftAlert(){
 
   alert.innerHTML = format(todayShift) + "<br>" + formatTomorrow(tomorrowShift);
 
-  setTimeout(()=> alert.classList.add("show"), 500);
-  setTimeout(()=> alert.classList.remove("show"), 4000);
+  setTimeout(()=>alert.classList.add("show"),500);
+  setTimeout(()=>alert.classList.remove("show"),4000);
 }
+
+/* SERVICE WORKER */
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js")
-      .then(() => console.log("SW OK"))
-      .catch(err => console.log("SW ERROR", err));
-  });
+  navigator.serviceWorker.register("sw.js");
 }
 
-showShiftAlert();
+/* ЗАПУСК */
 
+showShiftAlert();
 generateCalendar();
